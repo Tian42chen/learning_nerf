@@ -2,7 +2,7 @@ from . import samplers
 from .dataset_catalog import DatasetCatalog
 import torch
 import torch.utils.data
-import imp
+import importlib
 import os
 from .collate_batch import make_collator
 import numpy as np
@@ -16,14 +16,11 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 def _dataset_factory(is_train, is_val):
     if is_val:
         module = cfg.val_dataset_module
-        path = cfg.val_dataset_path
     elif is_train:
         module = cfg.train_dataset_module
-        path = cfg.train_dataset_path
     else:
         module = cfg.test_dataset_module
-        path = cfg.test_dataset_path
-    dataset = imp.load_source(module, path).Dataset
+    dataset = importlib.import_module(module).Dataset
     return dataset
 
 
@@ -31,13 +28,10 @@ def make_dataset(cfg, is_train=True):
     if is_train:
         args = cfg.train_dataset
         module = cfg.train_dataset_module
-        path = cfg.train_dataset_path
     else:
         args = cfg.test_dataset
         module = cfg.test_dataset_module
-        path = cfg.test_dataset_path
-    dataset = imp.load_source(module, path).Dataset
-    dataset = dataset(**args)
+    dataset = importlib.import_module(module).Dataset(**args)
     return dataset
 
 
@@ -45,9 +39,9 @@ def make_data_sampler(dataset, shuffle, is_distributed):
     if is_distributed:
         return samplers.DistributedSampler(dataset, shuffle=shuffle)
     if shuffle:
-        sampler = torch.utils.data.sampler.RandomSampler(dataset)
+        sampler = torch.utils.data.RandomSampler(dataset)
     else:
-        sampler = torch.utils.data.sampler.SequentialSampler(dataset)
+        sampler = torch.utils.data.SequentialSampler(dataset)
     return sampler
 
 
@@ -61,7 +55,7 @@ def make_batch_data_sampler(cfg, sampler, batch_size, drop_last, max_iter,
         sampler_meta = cfg.test.sampler_meta
 
     if batch_sampler == 'default':
-        batch_sampler = torch.utils.data.sampler.BatchSampler(
+        batch_sampler = torch.utils.data.BatchSampler(
             sampler, batch_size, drop_last)
     elif batch_sampler == 'image_size':
         batch_sampler = samplers.ImageSizeBatchSampler(sampler, batch_size,
@@ -80,7 +74,6 @@ def worker_init_fn(worker_id):
 def make_data_loader(cfg, is_train=True, is_distributed=False, max_iter=-1):
     if is_train:
         batch_size = cfg.train.batch_size
-        # shuffle = True
         shuffle = cfg.train.shuffle
         drop_last = False
     else:

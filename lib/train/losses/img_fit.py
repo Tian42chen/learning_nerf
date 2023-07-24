@@ -4,7 +4,7 @@ from lib.utils import net_utils
 from lib.config import cfg
 
 class NetworkWrapper(nn.Module):
-    def __init__(self, net, train_loader):
+    def __init__(self, net):
         super(NetworkWrapper, self).__init__()
         self.net = net
         self.color_crit = nn.MSELoss(reduction='mean')

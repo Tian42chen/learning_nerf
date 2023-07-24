@@ -1,9 +1,8 @@
 import os
-import imp
+import importlib
 
 
 def make_network(cfg):
     module = cfg.network_module
-    path = cfg.network_path
-    network = imp.load_source(module, path).Network()
+    network = importlib.import_module(module).Network()
     return network

@@ -3,6 +3,7 @@ import argparse
 import os
 import numpy as np
 from . import yacs
+import traceback
 
 
 cfg = CN()
@@ -70,14 +71,14 @@ cfg.task = 'hello'
 # gpus
 cfg.gpus = list(range(4))
 # if load the pretrained network
-cfg.resume = True
+cfg.resume = False
 
 # epoch
 cfg.ep_iter = -1
 cfg.save_ep = 100000
 cfg.save_latest_ep = 1
 cfg.eval_ep = 1
-log_interval: 20
+cfg.log_interval = 20
 
 
 cfg.task_arg = CN()
@@ -126,6 +127,10 @@ cfg.skip_eval = False
 
 cfg.fix_random = False
 
+cfg.debug = False
+
+cfg.silent = False
+
 def parse_cfg(cfg, args):
     if len(cfg.task) == 0:
         raise ValueError('task must be specified')
@@ -149,9 +154,15 @@ def parse_cfg(cfg, args):
     cfg.record_dir = os.path.join(cfg.record_dir, cfg.task, cfg.scene, cfg.exp_name)
     cfg.result_dir = os.path.join(cfg.result_dir, cfg.task, cfg.scene, cfg.exp_name, cfg.save_tag)
     cfg.local_rank = args.local_rank
-    modules = [key for key in cfg if '_module' in key]
-    for module in modules:
-        cfg[module.replace('_module', '_path')] = cfg[module].replace('.', '/') + '.py'
+    # modules = [key for key in cfg if '_module' in key]
+    # for module in modules:
+    #     cfg[module.replace('_module', '_path')] = cfg[module].replace('.', '/') + '.py'
+    
+    if cfg.debug:
+        os.environ['PYTHONBREAKPOINT'] = "ipdb.set_trace"
+        cfg.train.num_workers = 0
+    else:
+        os.environ['PYTHONBREAKPOINT'] = "0"
 
 def make_cfg(args):
     def merge_cfg(cfg_file, cfg):
@@ -162,7 +173,7 @@ def make_cfg(args):
             cfg.merge_from_other_cfg(current_cfg)
         else:
             cfg.merge_from_other_cfg(current_cfg)
-        print(cfg_file)
+        print("config: "+cfg_file)
         return cfg
     cfg_ = merge_cfg(args.cfg_file, cfg)
     try:
@@ -171,6 +182,7 @@ def make_cfg(args):
     except:
         cfg_.merge_from_list(args.opts)
     parse_cfg(cfg_, args)
+    # traceback.print_stack()
     return cfg_
 
 

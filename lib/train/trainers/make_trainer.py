@@ -1,14 +1,13 @@
 from .trainer import Trainer
-import imp
+import importlib
 
 
-def _wrapper_factory(cfg, network, train_loader=None):
+def _wrapper_factory(cfg, network):
     module = cfg.loss_module
-    path = cfg.loss_path
-    network_wrapper = imp.load_source(module, path).NetworkWrapper(network, train_loader)
+    network_wrapper = importlib.import_module(module).NetworkWrapper(network)
     return network_wrapper
 
 
-def make_trainer(cfg, network, train_loader=None):
-    network = _wrapper_factory(cfg, network, train_loader)
+def make_trainer(cfg, network):
+    network = _wrapper_factory(cfg, network)
     return Trainer(network)

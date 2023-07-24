@@ -25,6 +25,7 @@ class Dataset(data.Dataset):
         for frame in json_info['frames']:
             image_paths.append(os.path.join(self.data_root, frame['file_path'][2:] + '.png'))
 
+        # Ensure that the opaque parts of the image are correctly synthesized into the background
         img = imageio.imread(image_paths[view])/255.
         img = img[..., :3] * img[..., -1:] + (1 - img[..., -1:])
         if self.input_ratio != 1.:

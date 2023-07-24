@@ -4,30 +4,32 @@ from lib.train import make_trainer, make_optimizer, make_lr_scheduler, make_reco
 from lib.datasets import make_data_loader
 from lib.utils.net_utils import load_model, save_model, load_network, save_trained_config, load_pretrain
 from lib.evaluators import make_evaluator
-import torch.multiprocessing
 import torch
+import torch.multiprocessing
 import torch.distributed as dist
 import os
+from termcolor import colored, cprint
 torch.autograd.set_detect_anomaly(True)
 
 if cfg.fix_random:
     torch.manual_seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    raise NotImplementedError
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
 
 
 def train(cfg, network):
-    train_loader = make_data_loader(cfg,
-                                    is_train=True,
-                                    is_distributed=cfg.distributed,
-                                    max_iter=cfg.ep_iter)
-    val_loader = make_data_loader(cfg, is_train=False)
-    trainer = make_trainer(cfg, network, train_loader)
+    trainer = make_trainer(cfg, network)
+    if not cfg.silent:print("Finish initialize trainer...")
 
     optimizer = make_optimizer(cfg, network)
+    if not cfg.silent:print("Finish initialize optimizer...")
     scheduler = make_lr_scheduler(cfg, optimizer)
+    if not cfg.silent:print("Finish initialize lr scheduler...")
     recorder = make_recorder(cfg)
+    if not cfg.silent:print("Finish initialize recorder...")
     evaluator = make_evaluator(cfg)
+    if not cfg.silent:print("Finish initialize evaluator...")
 
     begin_epoch = load_model(network,
                              optimizer,
@@ -40,12 +42,21 @@ def train(cfg, network):
 
     set_lr_scheduler(cfg, scheduler)
 
+    train_loader = make_data_loader(cfg,
+                                    is_train=True,
+                                    is_distributed=cfg.distributed,
+                                    max_iter=cfg.ep_iter)
+    val_loader = make_data_loader(cfg, is_train=False)
+
+    print(colored(f"[*] Training experiment {cfg.exp_name} started", 'green'))
     for epoch in range(begin_epoch, cfg.train.epoch):
         recorder.epoch = epoch
         if cfg.distributed:
-            train_loader.batch_sampler.sampler.set_epoch(epoch)
+            raise NotImplementedError
+            # train_loader.batch_sampler.sampler.set_epoch(epoch)
 
-        train_loader.dataset.epoch = epoch
+        # train_loader.dataset.epoch = epoch
+        recorder.epoch = epoch
 
         trainer.train(epoch, train_loader, optimizer, recorder)
         scheduler.step()
@@ -97,8 +108,8 @@ def main():
     if cfg.distributed:
         cfg.local_rank = int(os.environ['RANK']) % torch.cuda.device_count()
         torch.cuda.set_device(cfg.local_rank)
-        torch.distributed.init_process_group(backend="nccl",
-                                             init_method="env://")
+        dist.init_process_group(backend="nccl",
+                                init_method="env://")
         synchronize()
 
     network = make_network(cfg)
@@ -109,7 +120,7 @@ def main():
     if cfg.local_rank == 0:
         print('Success!')
         print('='*80)
-    os.system('kill -9 {}'.format(os.getpid()))
+    # os.system('kill -9 {}'.format(os.getpid()))
 
 
 if __name__ == "__main__":

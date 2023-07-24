@@ -296,7 +296,9 @@ def load_model(net,
                resume=True,
                epoch=-1):
     if not resume:
-        os.system('rm -rf {}'.format(model_dir))
+        import shutil
+        shutil.rmtree(model_dir, ignore_errors=True)
+        # os.system('rm -rf {}'.format(model_dir))
 
     if not os.path.exists(model_dir):
         return 0
@@ -329,7 +331,8 @@ def load_model(net,
 
 
 def save_model(net, optim, scheduler, recorder, model_dir, epoch, last=False):
-    os.system('mkdir -p {}'.format(model_dir))
+    os.makedirs(model_dir, exist_ok=True)
+    # os.system('mkdir -p {}'.format(model_dir))
     model = {
         'net': net.state_dict(),
         'optim': optim.state_dict(),
@@ -349,8 +352,10 @@ def save_model(net, optim, scheduler, recorder, model_dir, epoch, last=False):
     ]
     if len(pths) <= 5:
         return
-    os.system('rm {}'.format(
-        os.path.join(model_dir, '{}.pth'.format(min(pths)))))
+    
+    import shutil
+    shutil.rmtree(os.path.join(model_dir, '{}.pth'.format(min(pths))), ignore_errors=True)
+    # os.system('rm {}'.format(os.path.join(model_dir, '{}.pth'.format(min(pths)))))
 
 
 def load_network(net, model_dir, resume=True, epoch=-1, strict=True):

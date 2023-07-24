@@ -17,8 +17,8 @@ class Evaluator:
 
     def __init__(self,):
         self.psnrs = []
-        os.system('mkdir -p ' + cfg.result_dir)
-        os.system('mkdir -p ' + cfg.result_dir + '/vis')
+        os.makedirs(cfg.result_dir, exist_ok=True)
+        os.makedirs(cfg.result_dir + '/vis', exist_ok=True)
 
     def evaluate(self, output, batch):
         # assert image number = 1
@@ -28,7 +28,8 @@ class Evaluator:
         psnr_item = psnr(gt_rgb, pred_rgb, data_range=1.)
         self.psnrs.append(psnr_item)
         save_path = os.path.join(cfg.result_dir, 'vis/res.jpg')
-        imageio.imwrite(save_path, img_utils.horizon_concate(gt_rgb, pred_rgb))
+        hc_img=img_utils.horizon_concate(gt_rgb, pred_rgb)
+        imageio.imwrite(save_path,(hc_img*255).astype(np.uint8))
 
     def summarize(self):
         ret = {}

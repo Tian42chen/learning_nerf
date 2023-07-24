@@ -52,7 +52,9 @@ class Recorder(object):
         log_dir = cfg.record_dir
         if not cfg.resume:
             print(colored('remove contents of directory %s' % log_dir, 'red'))
-            os.system('rm -r %s' % log_dir)
+            # os.system('rm -r %s' % log_dir)
+            import shutil
+            shutil.rmtree(log_dir, ignore_errors=True)
         self.writer = SummaryWriter(log_dir=log_dir)
 
         # scalars

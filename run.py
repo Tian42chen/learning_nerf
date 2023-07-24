@@ -1,3 +1,4 @@
+from zmq import Flag
 from lib.config import cfg, args
 import numpy as np
 import os
@@ -43,14 +44,11 @@ def run_evaluate():
     import tqdm
     import torch
     from lib.networks import make_network
-    from lib.utils import net_utils
+    from lib.utils.net_utils import load_network
     import time
 
     network = make_network(cfg).cuda()
-    net_utils.load_network(network,
-                           cfg.trained_model_dir,
-                           resume=cfg.resume,
-                           epoch=cfg.test.epoch)
+    load_network(network, cfg.trained_model_dir, resume=cfg.resume, epoch=cfg.test.epoch)
     network.eval()
 
     data_loader = make_data_loader(cfg, is_train=False)
@@ -77,6 +75,7 @@ def run_evaluate():
         print('fps: ', 1./np.mean(net_time))
 
 def run_visualize():
+    return 
     from lib.networks import make_network
     from lib.datasets import make_data_loader
     from lib.utils.net_utils import load_network
