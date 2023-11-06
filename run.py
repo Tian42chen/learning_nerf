@@ -10,6 +10,7 @@ def run_dataset():
     cfg.train.num_workers = 0
     data_loader = make_data_loader(cfg, is_train=False)
     for batch in tqdm.tqdm(data_loader):
+        # print(batch['rays_o'].shape)
         pass
 
 def run_network():

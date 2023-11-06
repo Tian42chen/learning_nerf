@@ -1,9 +1,9 @@
 import torch
-from lib.networks.encoding.freq import Encoder as FreqEncoder
 from lib.config import cfg as global_cfg
 
 def get_encoder(cfg):
     if cfg.type == 'frequency':
+        from lib.networks.encoding.freq import Encoder as FreqEncoder
         encoder_kwargs = {
                 'include_input' : True,
                 'input_dims' : cfg.input_dim,

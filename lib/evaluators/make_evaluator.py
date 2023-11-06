@@ -1,6 +1,5 @@
 import os
 import importlib
-from lib.datasets.dataset_catalog import DatasetCatalog
 
 
 def _evaluator_factory(cfg):
