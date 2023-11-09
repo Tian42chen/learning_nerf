@@ -1,5 +1,5 @@
 task: nerf
-gpus: [0]
+gpus: [1]
 exp_name: 'img_fit'
 scene: 'lego'
 
@@ -38,7 +38,7 @@ train:
     batch_size: 1
     lr: 5e-4
     weight_decay: 0.
-    epoch: 20 # 100 * 500
+    epoch: 20 # 20*500 = 10000 iterations
     scheduler:
         type: 'exponential'
         gamma: 0.1
@@ -49,6 +49,6 @@ test:
     batch_size: 1
 
 ep_iter: 500
-eval_ep: 10       # 50 iterations
+eval_ep: 10       # 10*500 = 5000 iterations
 save_latest_ep: 20 # 10000 iterations
 log_interval: 100

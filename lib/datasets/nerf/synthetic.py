@@ -17,14 +17,17 @@ class Dataset(data.Dataset):
         input_ratio = kwargs['input_ratio']
         start, end, step = kwargs['cams']
 
+        self.near = kwargs['near']
+        self.far = kwargs['far']
+
         scene = cfg.scene
         self.data_root = os.path.join(data_root, scene)
         self.batch_size = cfg.task_arg.N_rays
 
         json_info = json.load(open(os.path.join(self.data_root, f'transforms_{self.split}.json')))
 
-        if end <= -1 or len(json_info['frames'])<=end:
-            end = len(json_info['frames'])
+        info_length = len(json_info['frames'])
+        if end <= -1 or info_length <= end: end = info_length
 
         # read data
         self.images = []
@@ -74,6 +77,12 @@ class Dataset(data.Dataset):
                 'rays_d': rays_d.reshape(-1,3),
                 'rgb': image.reshape(-1,3)
             })
+
+        ret.update({
+            'near': np.broadcast_to(self.near, ret['rays_o'].shape[:-1] + (1,)).astype(np.float32),
+            'far': np.broadcast_to(self.far, ret['rays_o'].shape[:-1] + (1,)).astype(np.float32)
+        })
+
         ret.update({'meta': {'H': self.H, 'W': self.W}})
         return ret
 

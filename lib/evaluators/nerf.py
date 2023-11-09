@@ -15,10 +15,28 @@ import json
 
 class Evaluator:
     def __init__(self,):
-        raise NotImplementedError
-    
+        self.psnrs = []
+        self.iter=0
+        os.makedirs(cfg.result_dir, exist_ok=True)
+        os.makedirs(cfg.result_dir + '/vis', exist_ok=True)
+
     def evaluate(self, output, batch):
-        raise NotImplementedError
-    
+        # assert image number = 1
+        H, W = batch['meta']['H'].item(), batch['meta']['W'].item()
+        pred_rgb = output['rgb'][0].reshape(H, W, 3).detach().cpu().numpy()
+        gt_rgb = batch['rgb'][0].reshape(H, W, 3).detach().cpu().numpy()
+        psnr_item = psnr(gt_rgb, pred_rgb, data_range=1.)
+        self.psnrs.append(psnr_item)
+        save_path = os.path.join(cfg.result_dir, f'vis/res{self.iter}.jpg')
+        self.iter += 1
+        hc_img=img_utils.horizon_concate(gt_rgb, pred_rgb)
+        imageio.imwrite(save_path,(hc_img*255).astype(np.uint8))
+
     def summarize(self):
-        raise NotImplementedError
+        ret = {}
+        ret.update({'psnr': np.mean(self.psnrs)})
+        print(ret)
+        self.psnrs = []
+        print('Save visualization results to {}'.format(cfg.result_dir))
+        json.dump(ret, open(os.path.join(cfg.result_dir, 'metrics.json'), 'w'))
+        return ret

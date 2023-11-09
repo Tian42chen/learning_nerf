@@ -15,11 +15,10 @@ task_arg:
     N_rays: 1024 # number of rays per training iteration
     chunk_size: 4096 # chunkify
     white_bkgd: True # use white background
-    cascade_samples: [64, 128] # importance sampling, you can set it to [64] for the initial implemetation
+    cascade_samples: [64]
+    # cascade_samples: [64, 128] # importance sampling, you can set it to [64] for the initial implemetation
 
 network:
-    near: 2
-    far: 6
     nerf:
         W: 256 # width
         D: 8 # depth
@@ -38,12 +37,16 @@ train_dataset:
     split: 'train'
     input_ratio: 1. # input image ratio, you can set it to 0.5 to acclerate training
     cams: [0, -1, 1] # input cameras, you can use this variable to select training images
+    near: 2
+    far: 6
 
 test_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'test'
     input_ratio: 0.5
     cams: [0, -1, 100]
+    near: 2
+    far: 6
 
 train:
     batch_size: 1
@@ -64,3 +67,5 @@ save_ep: 20
 eval_ep: 20       # 10000 iterations
 save_latest_ep: 5 # 2500 iterations
 log_interval: 10
+
+perturb: 0

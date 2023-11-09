@@ -8,9 +8,11 @@ def run_dataset():
     import tqdm
 
     cfg.train.num_workers = 0
-    data_loader = make_data_loader(cfg, is_train=False)
+    data_loader = make_data_loader(cfg, is_train=True)
     for batch in tqdm.tqdm(data_loader):
+        print(batch['uv'].shape)
         # print(batch['rays_o'].shape)
+        # print(batch['near'].shape)
         pass
 
 def run_network():
@@ -23,10 +25,10 @@ def run_network():
     import time
 
     network = make_network(cfg).cuda()
-    load_network(network, cfg.trained_model_dir, epoch=cfg.test.epoch)
+    load_network(network, cfg.trained_model_dir, epoch=cfg.test.epoch, resume=cfg.resume)
     network.eval()
 
-    data_loader = make_data_loader(cfg, is_train=False)
+    data_loader = make_data_loader(cfg, is_train=True)
     total_time = 0
     for batch in tqdm.tqdm(data_loader):
         batch = to_cuda(batch)

@@ -1,7 +1,9 @@
 import torch
 from lib.config import cfg as global_cfg
+from typing import Tuple, Callable, Any
+from torch import Tensor
 
-def get_encoder(cfg):
+def get_encoder(cfg): #->Tuple[Callable[Tensor, Tensor], int]:
     if cfg.type == 'frequency':
         from lib.networks.encoding.freq import Encoder as FreqEncoder
         encoder_kwargs = {
