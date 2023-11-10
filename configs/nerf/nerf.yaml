@@ -1,5 +1,5 @@
 task: nerf
-gpus: [0]
+gpus: [2]
 exp_name: 'nerf'
 scene: 'lego'
 
@@ -35,18 +35,18 @@ network:
 train_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'train'
-    input_ratio: 1. # input image ratio, you can set it to 0.5 to acclerate training
+    input_ratio: 0.5 # input image ratio, you can set it to 0.5 to acclerate training
     cams: [0, -1, 1] # input cameras, you can use this variable to select training images
-    near: 2
-    far: 6
+    near: 2.
+    far: 6.
 
 test_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'test'
     input_ratio: 0.5
     cams: [0, -1, 100]
-    near: 2
-    far: 6
+    near: 2.
+    far: 6.
 
 train:
     batch_size: 1
@@ -63,9 +63,9 @@ test:
     batch_size: 1
 
 ep_iter: 500
-save_ep: 20
-eval_ep: 20       # 10000 iterations
-save_latest_ep: 5 # 2500 iterations
-log_interval: 10
+save_ep: 40
+eval_ep: 20       # 20*400 = 8000 iterations
+save_latest_ep: 5 # 5*400 = 2000 iterations
+log_interval: 100
 
 perturb: 0

@@ -38,13 +38,12 @@ class Network(nn.Module):
             t_rand = torch.rand(z_vals.shape, device=upper.device, dtype=upper.dtype)
             z_vals = lower + (upper - lower) * t_rand
 
-        pts = ray_o[:,None, :] + ray_d[:,None, :]  * z_vals [..., None] # (N_rays, N_samples, 3)
-        viewdir = ray_d[:,None, :].expand(pts.shape) # (N_rays, N_samples, 3)
+        pts = ray_o[:, None, :] + ray_d[:, None, :]  * z_vals [..., None] # (N_rays, N_samples, 3)
+        viewdir = ray_d[:, None, :].expand(pts.shape) # (N_rays, N_samples, 3)
 
         # calculate dists for the opacity computation
         dists = z_vals[..., 1:] - z_vals[..., :-1]
         dists = torch.cat([dists, dists[..., -1:]], dim=-1) # (N_rays, N_samples)
-        # dists = dists.view(n_batch * n_pixel * n_sample)
         return pts, viewdir, dists
     
     def get_density_color(self, pts, viewdir, dist):
@@ -62,7 +61,7 @@ class Network(nn.Module):
             x = F.relu(x)
         rgb = self.rgb_linear(x)
 
-        alpha = 1 - torch.exp(-F.relu(rawalpha)*dist)
+        alpha = 1. - torch.exp(-F.relu(rawalpha)*dist)
 
         return alpha, rgb
 
@@ -80,7 +79,7 @@ class Network(nn.Module):
         rgb = rgb.reshape(N, S, -1)
         alpha = alpha.reshape(N, S)
 
-        weights, rgb_map, acc_map = volume_rendering(rgb, alpha, bg_brightness=None, bg_image=None)
+        weights, rgb_map, acc_map = volume_rendering(rgb, alpha, bg_brightness=cfg.task_arg.white_bkgd, bg_image=None)
 
         ret = {'rgb': rgb_map, 'weights': weights, 'acc': acc_map}
 
