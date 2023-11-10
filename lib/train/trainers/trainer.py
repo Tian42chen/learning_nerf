@@ -74,6 +74,17 @@ class Trainer(object):
             recorder.batch_time.update(batch_time)
             recorder.data_time.update(data_time)
 
+            if cfg.debug:
+                with open('exp/gradient.log', 'a') as f:
+                    for name, param in self.network.named_parameters():
+                        if param.grad is not None:
+                            grad_value = param.grad.mean().item()
+                            f.write(f'{name}: {grad_value:.6f}\n')
+                    f.write(str(recorder))
+                    f.write('\n')
+                raise NotImplementedError
+
+
             self.global_step += 1
             if iteration % cfg.log_interval == 0 or iteration == (max_iter - 1):
                 # print training state

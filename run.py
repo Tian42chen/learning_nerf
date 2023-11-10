@@ -25,6 +25,7 @@ def run_network():
     load_network(network, cfg.trained_model_dir, epoch=cfg.test.epoch, resume=cfg.resume)
     network.eval()
 
+    i=0
     data_loader = make_data_loader(cfg, is_train=True)
     total_time = 0
     for batch in tqdm.tqdm(data_loader):
@@ -35,6 +36,8 @@ def run_network():
             network(batch)
             torch.cuda.synchronize()
             total_time += time.time() - start
+        if i >= 10 : break
+        i +=1
     print(total_time / len(data_loader))
 
 
@@ -47,6 +50,8 @@ def run_evaluate():
     from lib.utils.net_utils import load_network
     import time
 
+    cfg.resume=True
+    
     network = make_network(cfg).cuda()
     load_network(network, cfg.trained_model_dir, resume=cfg.resume, epoch=cfg.test.epoch)
     network.eval()

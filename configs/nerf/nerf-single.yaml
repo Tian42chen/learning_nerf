@@ -1,6 +1,6 @@
 task: nerf
 gpus: [2]
-exp_name: 'nerf'
+exp_name: 'nerf-single'
 scene: 'lego'
 
 # module path
@@ -15,8 +15,7 @@ task_arg:
     N_rays: 1024 # number of rays per training iteration
     chunk_size: 4096 # chunkify
     white_bkgd: True # use white background
-    # cascade_samples: [64]
-    cascade_samples: [64, 128] # importance sampling, you can set it to [64] for the initial implemetation
+    cascade_samples: [64]
     perturb: 1
 
 network:

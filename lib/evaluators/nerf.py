@@ -18,7 +18,11 @@ class Evaluator:
     def __init__(self,):
         self.psnrs = []
         self.acc = []
+        self.psnrs_coarse = []
+        self.acc_coarse = []
         self.iter=0
+        self.image_count=0
+        
         if not cfg.resume:
             print(colored('remove contents of directory %s' % cfg.result_dir, 'red'))
             # os.system('rm -r %s' % log_dir)
@@ -39,20 +43,39 @@ class Evaluator:
 
         self.acc.append(output['acc'].mean().item())
 
-        save_path = os.path.join(cfg.result_dir, f'vis/res{self.iter}.jpg')
-        self.iter += 1
         hc_img=img_utils.horizon_concate(gt_rgb, pred_rgb)
+
+        if 'rgb_coarse' in output:
+            pred_coarse_rgb = output['rgb_coarse'][0].reshape(H, W, 3).detach().cpu().numpy()
+            coarse_psnr_item = psnr(gt_rgb, pred_coarse_rgb, data_range=1.)
+            self.psnrs_coarse.append(coarse_psnr_item)
+            self.acc_coarse.append(output['acc_coarse'].mean().item())
+            hc_img=img_utils.horizon_concate(hc_img, pred_coarse_rgb)
+
+        save_path = os.path.join(cfg.result_dir, f'vis/res{self.iter}-{self.image_count}.jpg')
+        self.image_count += 1
         imageio.imwrite(save_path,(hc_img*255).astype(np.uint8))
 
     def summarize(self):
+        self.iter += 1
+        self.image_count = 0
+
         ret = {}
         ret.update({
             'psnr': np.mean(self.psnrs),
             'acc': np.mean(self.acc),
         })
+        if self.psnrs_coarse:
+            ret.update({
+                'psnr_coarse': np.mean(self.psnrs_coarse),
+                'acc_coarse': np.mean(self.acc_coarse),
+            })
+
         print(ret)
         self.psnrs = []
         self.acc = []
+        self.psnrs_coarse = []
+        self.acc_coarse = []
         print('Save visualization results to {}'.format(cfg.result_dir))
         json.dump(ret, open(os.path.join(cfg.result_dir, 'metrics.json'), 'w'))
         return ret

@@ -2,7 +2,7 @@ import torch
 import torch.utils.data as data
 import numpy as np
 import os
-from lib.utils import if_nerf_utils
+from lib.utils.if_nerf_utils import extract_parameters, get_rays
 from lib.config import cfg
 from torchvision import transforms as T
 import imageio
@@ -57,9 +57,9 @@ class Dataset(data.Dataset):
         image = self.images[index]
         camera_pose = self.camera_poses[index]
 
-        K, R, T = if_nerf_utils.extract_parameters(camera_pose, self.focal, self.W, self.H)
+        K, R, T = extract_parameters(camera_pose, self.focal, self.W, self.H)
 
-        rays_o, rays_d = if_nerf_utils.get_rays(self.H, self.W, K, R, T)
+        rays_o, rays_d = get_rays(self.H, self.W, K, R, T)
         rays_o, rays_d = rays_o.astype(np.float32), rays_d.astype(np.float32)
 
         ret={}
