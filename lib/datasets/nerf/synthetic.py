@@ -2,12 +2,14 @@ import torch
 import torch.utils.data as data
 import numpy as np
 import os
-from lib.utils.if_nerf_utils import extract_parameters, get_rays
+from lib.utils.if_nerf_utils import extract_parameters, get_rays, get_rays_nerf, crop_center
+from lib.utils.debug_utils import save_img
 from lib.config import cfg
 from torchvision import transforms as T
 import imageio
 import json
 import cv2
+import tqdm
 
 class Dataset(data.Dataset):
     def __init__(self, **kwargs):
@@ -19,6 +21,11 @@ class Dataset(data.Dataset):
 
         self.near = kwargs['near']
         self.far = kwargs['far']
+
+        self.precrop_iters = 0
+        if self.split == 'train' and 'precrop' in kwargs:
+            self.precrop_iters = kwargs['precrop'].iters
+            self.precrop_frac = kwargs['precrop'].frac
 
         scene = cfg.scene
         self.data_root = os.path.join(data_root, scene)
@@ -59,12 +66,33 @@ class Dataset(data.Dataset):
 
         K, R, T = extract_parameters(camera_pose, self.focal, self.W, self.H)
 
-        rays_o, rays_d = get_rays(self.H, self.W, K, R, T)
+        # rays_o, rays_d = get_rays(self.H, self.W, K, R, T)
+        rays_o, rays_d = get_rays_nerf(self.H, self.W, K, camera_pose)
         rays_o, rays_d = rays_o.astype(np.float32), rays_d.astype(np.float32)
+
+        if cfg.debug:
+            save_img(image, f'img{index}')
+            # print(f"R.T{index}: ", R.T)
+            # print(f"T{index}: ", T)
+            # print(f"R.T*T{index}: ", np.dot(R.T, T))
+            # print(f"camera_pose{index}: ", -np.dot(R.T, T).ravel())
+            # print(f"data{index}: ", rays_o[0][0])
+            # print("\n")
 
         ret={}
         if self.split == 'train':
-            ids = np.random.randint(0, self.H * self.W, size=self.batch_size)
+            HW = self.H * self.W
+            if self.precrop_iters > 0:
+                self.precrop_iters -= 1
+                HW *= self.precrop_frac**2
+                start_H, end_H, start_W, end_W = crop_center(self.H, self.W, self.precrop_frac)
+                image = image[start_H:end_H, start_W:end_W]
+                rays_o = rays_o[start_H:end_H, start_W:end_W]
+                rays_d = rays_d[start_H:end_H, start_W:end_W]
+
+            # save_img(image, f'crop_img{index}')
+
+            ids = np.random.randint(0, HW, size=self.batch_size)
 
             ret.update({
                 'rays_o': rays_o.reshape(-1,3)[ids],

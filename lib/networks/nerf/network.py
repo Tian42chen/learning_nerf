@@ -59,6 +59,8 @@ class Network(nn.Module):
             self.N_importance = cfg.task_arg.cascade_samples[1]
             self.fine_net = NeRF(net_cfg)
 
+        self.i=0
+
     def render(self, ray_o, ray_d, near, far, batch):
         t_vals = torch.linspace(0., 1., steps=self.N_samples, device=near.device, dtype=near.dtype)
         z_vals = near * (1. - t_vals) + far * t_vals
@@ -67,8 +69,11 @@ class Network(nn.Module):
 
         if cfg.debug:
             # save pts as npy
-            save_debug(pts, 'pts')
-            save_debug(viewdir, 'viewdir')
+            # print(f"network{self.i}: ",ray_o[0])
+            save_debug(ray_o[0], f'ray_o{self.i}')
+            save_debug(pts, f'pts{self.i}')
+            save_debug(viewdir, f'viewdir{self.i}')
+            self.i+=1
 
         N, S, C = pts.shape
 
@@ -88,7 +93,7 @@ class Network(nn.Module):
         fine_ret = None
         if self.N_importance is not None:
             # importance sampling
-            z_vals_mid = .5 * dists.reshape(N,S)[..., :-1]
+            z_vals_mid = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
             z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], self.N_importance, perturb=self.perturb)
             fine_z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
             fine_pts, fine_viewdir, fine_dists = get_5D_coords(ray_o, ray_d, fine_z_vals, self.perturb)
@@ -104,7 +109,7 @@ class Network(nn.Module):
             fine_rgb = fine_rgb.reshape(fine_N, fine_S, -1)
             fine_alpha = fine_alpha.reshape(fine_N, fine_S)
 
-            fine_weights, fine_rgb_map, fine_acc_map = volume_rendering(fine_rgb, fine_alpha, bg_brightness=self.white_bkgd, bg_image=None)
+            fine_weights, fine_rgb_map, fine_acc_map = volume_rendering(fine_rgb, fine_alpha, bg_brightness=self.white_bkgd)
 
             fine_ret = {'rgb': fine_rgb_map, 'weights': fine_weights, 'acc': fine_acc_map}
 
@@ -117,6 +122,9 @@ class Network(nn.Module):
                 ret[k] = fine_ret[k]
                 
         if cfg.debug:
+            # print("z_vals: ", z_vals.shape, z_vals[0])
+            # print("z_vals_mid: ", z_vals_mid.shape, z_vals_mid[0])
+            # print("fine_z_vals: ", fine_z_vals.shape, fine_z_vals[0][128:])
             for k in ret:
                 if (torch.isnan(ret[k]).any() or torch.isinf(ret[k]).any()):
                     print(f"! [Numerical Error] {k} contains nan or inf.")

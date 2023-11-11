@@ -1,6 +1,7 @@
 import time
 # import open3d as o3d
 import os
+import imageio
 import numpy as np
 import torch
 from lib.config import cfg
@@ -54,3 +55,10 @@ def output_debug_log(output, name):
 def save_debug(a, name):
     if not cfg.debug: return
     np.save( f'{get_pre(name)}.npy', to_numpy(a))
+
+def save_img(img, name):
+    if not cfg.debug: return
+    img = to_numpy(img)
+    img = img * 255
+    img = img.astype(np.uint8)
+    imageio.imwrite(f'{get_pre(name)}.png', img)

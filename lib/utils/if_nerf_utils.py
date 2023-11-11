@@ -1,6 +1,17 @@
 import numpy as np
 import torch
 
+# NOTE 真的是离大谱, nerf 的 transform matrix 并不是通常定义的extrinsic matrix. 
+def get_rays_nerf(H, W, K, c2w):
+    i, j = np.meshgrid(np.arange(W, dtype=np.float32),
+                       np.arange(H, dtype=np.float32),
+                       indexing='xy')
+    dirs = np.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -np.ones_like(i)], -1)
+    # Rotate ray directions from camera frame to the world frame
+    rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+    # Translate camera frame's origin to the world frame. It is the origin of all rays.
+    rays_o = np.broadcast_to(c2w[:3,-1], rays_d.shape) # NOTE T 直接是 相机的世界坐标
+    return rays_o, rays_d
 
 def get_rays(H, W, K, R, T):
     # calculate the camera origin
@@ -103,3 +114,10 @@ def sample_pdf(bins, weights, N_importance, perturb=False, epsilon=1e-8):
     samples = bins_g[...,0] + t * (bins_g[...,1]-bins_g[...,0]) # (N_rays, N_importance)
 
     return samples.detach()
+
+def crop_center(H, W, fraction=0.5):
+    start_H = int(H*(1-fraction))//2
+    end_H = start_H + int(H*fraction)
+    start_W = int(W*(1-fraction))//2
+    end_W = start_W + int(W*fraction)
+    return start_H, end_H, start_W, end_W

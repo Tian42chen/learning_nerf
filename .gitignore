@@ -11,3 +11,5 @@ __pycache__/
 *.ipynb
 *.png
 *.out
+debug/
+exp/
