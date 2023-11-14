@@ -64,14 +64,13 @@ class Dataset(data.Dataset):
         image = self.images[index]
         camera_pose = self.camera_poses[index]
 
-        K, R, T = extract_parameters(camera_pose, self.focal, self.W, self.H)
+        K = np.array([[self.focal, 0, self.W/2], [0, self.focal, self.H/2], [0, 0, 1]])
 
-        # rays_o, rays_d = get_rays(self.H, self.W, K, R, T)
         rays_o, rays_d = get_rays_nerf(self.H, self.W, K, camera_pose)
         rays_o, rays_d = rays_o.astype(np.float32), rays_d.astype(np.float32)
 
         if cfg.debug:
-            save_img(image, f'img{index}')
+            save_img(image, f'img{index}', time=True)
             # print(f"R.T{index}: ", R.T)
             # print(f"T{index}: ", T)
             # print(f"R.T*T{index}: ", np.dot(R.T, T))
@@ -84,13 +83,13 @@ class Dataset(data.Dataset):
             HW = self.H * self.W
             if self.precrop_iters > 0:
                 self.precrop_iters -= 1
-                HW *= self.precrop_frac**2
                 start_H, end_H, start_W, end_W = crop_center(self.H, self.W, self.precrop_frac)
+                HW = (end_H - start_H) * (end_W - start_W)
                 image = image[start_H:end_H, start_W:end_W]
                 rays_o = rays_o[start_H:end_H, start_W:end_W]
                 rays_d = rays_d[start_H:end_H, start_W:end_W]
 
-            # save_img(image, f'crop_img{index}')
+                save_img(image, f'crop_img{index}', time=True)
 
             ids = np.random.randint(0, HW, size=self.batch_size)
 

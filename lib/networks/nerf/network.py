@@ -23,12 +23,24 @@ class NeRF(nn.Module):
         self.feature_linear = nn.Linear(W, W)
         self.alpha_linear = nn.Linear(W, 1)
         self.rgb_linear = nn.Linear(W//2, 3)
+        # F.leaky_relu(self.rgb_linear.weight, 0.1, inplace=True)
+        # NOTE 若 rawalpha 初始得到负数, 则经过 relu 后梯度永远不可能传递.
+        nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
+        nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
+        if cfg.debug:
+            print("alpha_linear.weight: ", self.alpha_linear.weight.mean())
+            print("alpha_linear.weight: ", self.alpha_linear.weight.max())
+            print("alpha_linear.weight: ", self.alpha_linear.weight.min())
+            print("alpha_linear.bias: ", self.alpha_linear.bias.mean())
+            print("alpha_linear.bias: ", self.alpha_linear.bias.max())
+            print("alpha_linear.bias: ", self.alpha_linear.bias.min())
 
     def forward(self, pts, viewdir, dist):
         x = self.xyz_encoder(pts)
         for l in self.xyz_linears:
             x = l(x)
             x = F.relu(x)
+        # debug_x = x.clone()
         rawalpha = self.alpha_linear(x)
         feature = self.feature_linear(x)
 
@@ -38,8 +50,22 @@ class NeRF(nn.Module):
             x = l(x)
             x = F.relu(x)
         rgb = self.rgb_linear(x)
+        rgb = torch.sigmoid(rgb)
 
         alpha = 1. - torch.exp(-F.relu(rawalpha)*dist)
+
+        # print("pts: ",pts.mean())
+        # print("dist: ",dist.mean())
+        if cfg.debug and rawalpha.max() <0.:
+            # print("debug_x: ", debug_x[0])
+            # print("weights: ", self.alpha_linear.weight)
+            # print("debug_x: ", debug_x[0].max())
+            # print("debug_x: ", debug_x[0].mean())
+            # print("debug_x: ", debug_x[0].min())
+            print("rawalpha: ",rawalpha[0].mean())
+            print("rawalpha: ",rawalpha[0].max())
+            print("alpha: ",alpha[0].mean())
+            raise Exception("rawalpha < 0")
 
         return alpha, rgb
 
@@ -86,6 +112,10 @@ class Network(nn.Module):
         rgb = rgb.reshape(N, S, -1)
         alpha = alpha.reshape(N, S)
 
+        # if alpha.max() <= 0.:
+        #     # noise alpha
+        #     alpha = torch.randn_like(alpha) * 1e-4
+
         weights, rgb_map, acc_map = volume_rendering(rgb, alpha, bg_brightness=self.white_bkgd)
 
         coarse_ret = {'rgb': rgb_map, 'weights': weights, 'acc': acc_map}
@@ -124,7 +154,9 @@ class Network(nn.Module):
         if cfg.debug:
             # print("z_vals: ", z_vals.shape, z_vals[0])
             # print("z_vals_mid: ", z_vals_mid.shape, z_vals_mid[0])
-            # print("fine_z_vals: ", fine_z_vals.shape, fine_z_vals[0][128:])
+            # print("fine_z_vals: ", fine_z_vals.shape, fine_z_vals[0])
+            save_debug(rgb, f'rgb')
+            save_debug(alpha, f'alpha')
             for k in ret:
                 if (torch.isnan(ret[k]).any() or torch.isinf(ret[k]).any()):
                     print(f"! [Numerical Error] {k} contains nan or inf.")

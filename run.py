@@ -36,7 +36,7 @@ def run_network():
             network(batch)
             torch.cuda.synchronize()
             total_time += time.time() - start
-        if i >= 10 : break
+        if cfg.debug and i >= 100 : break
         i +=1
     print(total_time / len(data_loader))
 

@@ -36,7 +36,7 @@ network:
 train_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'train'
-    input_ratio: 0.5 # input image ratio, you can set it to 0.5 to acclerate training
+    input_ratio: 1. # input image ratio, you can set it to 0.5 to acclerate training
     cams: [0, -1, 1] # input cameras, you can use this variable to select training images
     near: 2.
     far: 6.
@@ -48,7 +48,7 @@ test_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'test'
     input_ratio: 0.5
-    cams: [0, -1, 50]
+    cams: [0, -1, 100]
     near: 2.
     far: 6.
 

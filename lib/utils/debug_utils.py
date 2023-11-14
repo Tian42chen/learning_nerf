@@ -6,12 +6,16 @@ import numpy as np
 import torch
 from lib.config import cfg
 
-def get_pre(name):
+def get_pre(name, time = False):
     if not os.path.exists('debug'): 
         os.makedirs('debug')
     if not os.path.exists(f'debug/{cfg.exp_name}'): 
         os.makedirs(f'debug/{cfg.exp_name}')
-    return f"debug/{cfg.exp_name}/{name}"
+
+    if time:
+        output_dir = f"debug/{cfg.exp_name}/{get_time()}_{name}"
+    else: output_dir = f"debug/{cfg.exp_name}/{name}" 
+    return output_dir
 
 def get_time():
     current_time = time.localtime()
@@ -51,14 +55,15 @@ def output_debug_log(output, name):
 
     with open(f"{get_pre(name)}.log", 'w') as f:
         f.write(output)
+        f.write('\n')
 
-def save_debug(a, name):
+def save_debug(a, name, time = False):
     if not cfg.debug: return
-    np.save( f'{get_pre(name)}.npy', to_numpy(a))
+    np.save( f'{get_pre(name, time)}.npy', to_numpy(a))
 
-def save_img(img, name):
+def save_img(img, name, time = False):
     if not cfg.debug: return
     img = to_numpy(img)
     img = img * 255
     img = img.astype(np.uint8)
-    imageio.imwrite(f'{get_pre(name)}.png', img)
+    imageio.imwrite(f'{get_pre(name, time)}.png', img)

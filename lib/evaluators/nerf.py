@@ -63,12 +63,12 @@ class Evaluator:
         ret = {}
         ret.update({
             'psnr': np.mean(self.psnrs),
-            'acc': np.mean(self.acc),
+            # 'acc': np.mean(self.acc),
         })
         if self.psnrs_coarse:
             ret.update({
                 'psnr_coarse': np.mean(self.psnrs_coarse),
-                'acc_coarse': np.mean(self.acc_coarse),
+                # 'acc_coarse': np.mean(self.acc_coarse),
             })
 
         print(ret)

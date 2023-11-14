@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-# NOTE 真的是离大谱, nerf 的 transform matrix 并不是通常定义的extrinsic matrix. 
+# NOTE 真的是离大谱, nerf 的 transform matrix 是 c2w, 而不是通常说的 w2c
 def get_rays_nerf(H, W, K, c2w):
     i, j = np.meshgrid(np.arange(W, dtype=np.float32),
                        np.arange(H, dtype=np.float32),
