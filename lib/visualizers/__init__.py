@@ -1,1 +1,1 @@
-from .make_visualize import make_visualize
+from .make_visualizer import make_visualizer

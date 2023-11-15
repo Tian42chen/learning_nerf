@@ -9,6 +9,7 @@ def get_rays_nerf(H, W, K, c2w):
     dirs = np.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -np.ones_like(i)], -1)
     # Rotate ray directions from camera frame to the world frame
     rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+    # rays_d = rays_d / np.linalg.norm(rays_d, axis=2, keepdims=True)
     # Translate camera frame's origin to the world frame. It is the origin of all rays.
     rays_o = np.broadcast_to(c2w[:3,-1], rays_d.shape) # NOTE T 直接是 相机的世界坐标
     return rays_o, rays_d
@@ -65,7 +66,7 @@ def volume_rendering(rgb, alpha, epsilon=1e-8, bg_brightness=None, bg_image=None
 
     return weights, rgb_map, acc_map
 
-def get_5D_coords(ray_o, ray_d, z_vals, perturb):
+def get_5D_coords(rays_o, rays_d, z_vals, perturb):
     if perturb > 0.:# and self.net.training:
         # get intervals between samples
         mids = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
@@ -75,13 +76,14 @@ def get_5D_coords(ray_o, ray_d, z_vals, perturb):
         t_rand = torch.rand(z_vals.shape, device=upper.device, dtype=upper.dtype)
         z_vals = lower + (upper - lower) * t_rand
 
-    pts = ray_o[:, None, :] + ray_d[:, None, :]  * z_vals [..., None] # (N_rays, N_samples, 3)
-    viewdir = ray_d[:, None, :].expand(pts.shape) # (N_rays, N_samples, 3)
+    pts = rays_o[:, None, :] + rays_d[:, None, :]  * z_vals [..., None] # (N_rays, N_samples, 3)
+    viewdirs = rays_d / torch.norm(rays_d, dim=-1, keepdim=True)
+    viewdirs = rays_d[:, None, :].expand(pts.shape) # (N_rays, N_samples, 3)
 
     # calculate dists for the opacity computation
     dists = z_vals[..., 1:] - z_vals[..., :-1]
-    dists = torch.cat([dists, dists[..., -1:]], dim=-1) # (N_rays, N_samples)
-    return pts, viewdir, dists
+    dists = torch.cat([dists, dists[..., -1:]], dim=-1)*torch.norm(rays_d[...,None,:], dim=-1) # (N_rays, N_samples)
+    return pts, viewdirs, dists
 
 # Hierarchical sampling (section 5.2)
 def sample_pdf(bins, weights, N_importance, perturb=False, epsilon=1e-8):

@@ -25,8 +25,9 @@ class NeRF(nn.Module):
         self.rgb_linear = nn.Linear(W//2, 3)
         # F.leaky_relu(self.rgb_linear.weight, 0.1, inplace=True)
         # NOTE 若 rawalpha 初始得到负数, 则经过 relu 后梯度永远不可能传递.
-        nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
-        nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
+        # nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
+        # nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
+        # nn.init.constant_(self.alpha_linear.bias, 0)
         if cfg.debug:
             print("alpha_linear.weight: ", self.alpha_linear.weight.mean())
             print("alpha_linear.weight: ", self.alpha_linear.weight.max())
@@ -76,7 +77,6 @@ class Network(nn.Module):
 
         self.chunk_size = cfg.task_arg.chunk_size
         self.white_bkgd = cfg.task_arg.white_bkgd
-        self.perturb = cfg.task_arg.perturb
         self.N_samples = cfg.task_arg.cascade_samples[0]
         self.N_importance = None
 
@@ -88,10 +88,13 @@ class Network(nn.Module):
         self.i=0
 
     def render(self, ray_o, ray_d, near, far, batch):
+        if 'perturb' in batch['meta']: perturb = 1
+        else: perturb =0
+
         t_vals = torch.linspace(0., 1., steps=self.N_samples, device=near.device, dtype=near.dtype)
         z_vals = near * (1. - t_vals) + far * t_vals
 
-        pts, viewdir, dists = get_5D_coords(ray_o, ray_d, z_vals, self.perturb)
+        pts, viewdir, dists = get_5D_coords(ray_o, ray_d, z_vals, perturb)
 
         if cfg.debug:
             # save pts as npy
@@ -124,9 +127,9 @@ class Network(nn.Module):
         if self.N_importance is not None:
             # importance sampling
             z_vals_mid = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
-            z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], self.N_importance, perturb=self.perturb)
+            z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], self.N_importance, perturb=perturb)
             fine_z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
-            fine_pts, fine_viewdir, fine_dists = get_5D_coords(ray_o, ray_d, fine_z_vals, self.perturb)
+            fine_pts, fine_viewdir, fine_dists = get_5D_coords(ray_o, ray_d, fine_z_vals, perturb)
 
             fine_N, fine_S, fine_C = fine_pts.shape
 
@@ -145,11 +148,9 @@ class Network(nn.Module):
 
         if fine_ret is None: ret = coarse_ret
         else:
-            ret = {}
+            ret = fine_ret
             for k in coarse_ret:
                 ret[k+'_coarse'] = coarse_ret[k]
-            for k in fine_ret:
-                ret[k] = fine_ret[k]
                 
         if cfg.debug:
             # print("z_vals: ", z_vals.shape, z_vals[0])

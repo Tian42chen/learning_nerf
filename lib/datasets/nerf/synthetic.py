@@ -58,19 +58,24 @@ class Dataset(data.Dataset):
         self.H, self.W = self.images[0].shape[:2]
 
         camera_angle_x = float(json_info['camera_angle_x'])
-        self.focal = .5 * self.W / np.tan(.5 * camera_angle_x)
+        focal = .5 * self.W / np.tan(.5 * camera_angle_x)
+        self.K = np.array([[focal, 0, self.W/2], [0, focal, self.H/2], [0, 0, 1]])
+
+        if 'perturb' in kwargs:
+            self.perturb = kwargs['perturb']
+        else:
+            self.perturb = 0
     
     def __getitem__(self, index):
         image = self.images[index]
         camera_pose = self.camera_poses[index]
 
-        K = np.array([[self.focal, 0, self.W/2], [0, self.focal, self.H/2], [0, 0, 1]])
-
-        rays_o, rays_d = get_rays_nerf(self.H, self.W, K, camera_pose)
+        rays_o, rays_d = get_rays_nerf(self.H, self.W, self.K, camera_pose)
         rays_o, rays_d = rays_o.astype(np.float32), rays_d.astype(np.float32)
 
         if cfg.debug:
             save_img(image, f'img{index}', time=True)
+            # print("rays_o: ", rays_o.shape)
             # print(f"R.T{index}: ", R.T)
             # print(f"T{index}: ", T)
             # print(f"R.T*T{index}: ", np.dot(R.T, T))
@@ -89,9 +94,12 @@ class Dataset(data.Dataset):
                 rays_o = rays_o[start_H:end_H, start_W:end_W]
                 rays_d = rays_d[start_H:end_H, start_W:end_W]
 
-                save_img(image, f'crop_img{index}', time=True)
+                if cfg.debug:
+                    save_img(image, f'crop_img{index}', time=True)
+                    # print("HW: ", HW)
+                    # print("rays_o: ", rays_o.shape)
 
-            ids = np.random.randint(0, HW, size=self.batch_size)
+            ids = np.random.choice(HW, size=self.batch_size, replace=False)
 
             ret.update({
                 'rays_o': rays_o.reshape(-1,3)[ids],
@@ -110,7 +118,10 @@ class Dataset(data.Dataset):
             'far': np.broadcast_to(self.far, ret['rays_o'].shape[:-1] + (1,)).astype(np.float32)
         })
 
-        ret.update({'meta': {'H': self.H, 'W': self.W}})
+        meta = {'H': self.H, 'W': self.W}
+        if self.perturb>0: meta.update({'perturb': self.perturb})
+
+        ret.update({'meta': meta})
         return ret
 
     def __len__(self):

@@ -36,7 +36,7 @@ def run_network():
             network(batch)
             torch.cuda.synchronize()
             total_time += time.time() - start
-        if cfg.debug and i >= 100 : break
+        if cfg.debug and i >= 0 : break
         i +=1
     print(total_time / len(data_loader))
 
@@ -80,7 +80,7 @@ def run_evaluate():
         print('fps: ', 1./np.mean(net_time))
 
 def run_visualize():
-    return 
+    # return 
     from lib.networks import make_network
     from lib.datasets import make_data_loader
     from lib.utils.net_utils import load_network
@@ -90,6 +90,8 @@ def run_visualize():
     from lib.visualizers import make_visualizer
     from lib.utils.data_utils import to_cuda
 
+    cfg.resume=True
+
     network = make_network(cfg).cuda()
     load_network(network,
                  cfg.trained_model_dir,
@@ -97,13 +99,13 @@ def run_visualize():
                  epoch=cfg.test.epoch)
     network.eval()
 
-    data_loader = make_data_loader(cfg, is_train=False)
+    # data_loader = make_data_loader(cfg, is_train=False)
     visualizer = make_visualizer(cfg)
-    for batch in tqdm.tqdm(data_loader):
-        batch = to_cuda(batch)
-        with torch.no_grad():
-            output = network(batch)
-        visualizer.visualize(output, batch)
+    # for batch in tqdm.tqdm(data_loader):
+    #     batch = to_cuda(batch)
+    #     with torch.no_grad():
+    #         output = network(batch)
+    #     visualizer.visualize(output, batch)
     if visualizer.write_video:
         visualizer.summarize()
 
