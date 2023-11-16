@@ -27,7 +27,7 @@ class NeRF(nn.Module):
         # NOTE 若 rawalpha 初始得到负数, 则经过 relu 后梯度永远不可能传递.
         # nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
         # nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
-        # nn.init.constant_(self.alpha_linear.bias, 0)
+        nn.init.constant_(self.alpha_linear.bias, 0)
         if cfg.debug:
             print("alpha_linear.weight: ", self.alpha_linear.weight.mean())
             print("alpha_linear.weight: ", self.alpha_linear.weight.max())
@@ -36,7 +36,7 @@ class NeRF(nn.Module):
             print("alpha_linear.bias: ", self.alpha_linear.bias.max())
             print("alpha_linear.bias: ", self.alpha_linear.bias.min())
 
-    def forward(self, pts, viewdir, dist):
+    def forward(self, pts, viewdir):
         x = self.xyz_encoder(pts)
         for l in self.xyz_linears:
             x = l(x)
@@ -53,22 +53,20 @@ class NeRF(nn.Module):
         rgb = self.rgb_linear(x)
         rgb = torch.sigmoid(rgb)
 
-        alpha = 1. - torch.exp(-F.relu(rawalpha)*dist)
-
         # print("pts: ",pts.mean())
         # print("dist: ",dist.mean())
-        if cfg.debug and rawalpha.max() <0.:
-            # print("debug_x: ", debug_x[0])
-            # print("weights: ", self.alpha_linear.weight)
-            # print("debug_x: ", debug_x[0].max())
-            # print("debug_x: ", debug_x[0].mean())
-            # print("debug_x: ", debug_x[0].min())
-            print("rawalpha: ",rawalpha[0].mean())
-            print("rawalpha: ",rawalpha[0].max())
-            print("alpha: ",alpha[0].mean())
-            raise Exception("rawalpha < 0")
+        # if cfg.debug and rawalpha.max() <0.:
+        #     # print("debug_x: ", debug_x[0])
+        #     # print("weights: ", self.alpha_linear.weight)
+        #     # print("debug_x: ", debug_x[0].max())
+        #     # print("debug_x: ", debug_x[0].mean())
+        #     # print("debug_x: ", debug_x[0].min())
+        #     print("rawalpha: ",rawalpha[0].mean())
+        #     print("rawalpha: ",rawalpha[0].max())
+        #     # print("alpha: ",alpha[0].mean())
+        #     raise Exception("rawalpha < 0")
 
-        return alpha, rgb
+        return {'rgb': rgb, 'rawalpha': rawalpha}
 
 class Network(nn.Module):
     def __init__(self,):
@@ -108,16 +106,21 @@ class Network(nn.Module):
 
         pts = pts.reshape(-1, C)
         viewdir = viewdir.reshape(-1, C)
-        dists = dists.reshape(-1,1)
 
-        alpha, rgb = self.coarse_net(pts, viewdir, dists)
+        ret = self.batchify(pts, viewdir, self.coarse_net)
 
-        rgb = rgb.reshape(N, S, -1)
-        alpha = alpha.reshape(N, S)
+        rawalpha = ret['rawalpha'].reshape(N, S)
+        rgb = ret['rgb'].reshape(N, S, -1)
 
-        # if alpha.max() <= 0.:
-        #     # noise alpha
-        #     alpha = torch.randn_like(alpha) * 1e-4
+        alpha = 1. - torch.exp(-F.relu(rawalpha)*dists)
+
+        if cfg.debug and alpha.max() <= 0.:
+            # noise alpha
+            print("rawalpha: ", rawalpha.mean())
+            print("rawalpha: ", rawalpha.max())
+            print("alpha: ", alpha.mean())
+            print("alpha: ", alpha.max())
+            raise Exception("alpha < 0")
 
         weights, rgb_map, acc_map = volume_rendering(rgb, alpha, bg_brightness=self.white_bkgd)
 
@@ -129,7 +132,7 @@ class Network(nn.Module):
             z_vals_mid = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
             z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], self.N_importance, perturb=perturb)
             fine_z_vals, _ = torch.sort(torch.cat([z_vals, z_samples], -1), -1)
-            fine_pts, fine_viewdir, fine_dists = get_5D_coords(ray_o, ray_d, fine_z_vals, perturb)
+            fine_pts, fine_viewdir, fine_dists = get_5D_coords(ray_o, ray_d, fine_z_vals)
 
             fine_N, fine_S, fine_C = fine_pts.shape
 
@@ -137,10 +140,14 @@ class Network(nn.Module):
             fine_viewdir = fine_viewdir.reshape(-1, fine_C)
             fine_dists = fine_dists.reshape(-1,1)
 
-            fine_alpha, fine_rgb = self.fine_net(fine_pts, fine_viewdir, fine_dists)
+            fine_ret = self.batchify(fine_pts, fine_viewdir, self.fine_net)
 
-            fine_rgb = fine_rgb.reshape(fine_N, fine_S, -1)
+            fine_rawalpha = fine_ret['rawalpha']
+            fine_alpha = 1. - torch.exp(-F.relu(fine_rawalpha)*fine_dists)
             fine_alpha = fine_alpha.reshape(fine_N, fine_S)
+
+            fine_rgb = fine_ret['rgb']
+            fine_rgb = fine_rgb.reshape(fine_N, fine_S, -1)
 
             fine_weights, fine_rgb_map, fine_acc_map = volume_rendering(fine_rgb, fine_alpha, bg_brightness=self.white_bkgd)
 
@@ -164,10 +171,10 @@ class Network(nn.Module):
 
         return ret
     
-    def batchify(self, ray_o, ray_d, near, far, batch):
+    def batchify(self, pts, viewdir, fn):
         all_ret = {}
-        for i in range(0, ray_o.shape[0], self.chunk_size):
-            ret = self.render(ray_o[i:i + self.chunk_size], ray_d[i:i + self.chunk_size], near[i:i + self.chunk_size], far[i:i + self.chunk_size], batch)
+        for i in range(0, pts.shape[0], self.chunk_size):
+            ret = (fn)(pts[i:i + self.chunk_size], viewdir[i:i + self.chunk_size])
             for k in ret:
                 if k not in all_ret:
                     all_ret[k] = []
@@ -177,5 +184,5 @@ class Network(nn.Module):
     
     def forward(self, batch):
         B, N_rays, C = batch['rays_o'].shape
-        ret = self.batchify(batch['rays_o'].reshape(-1, C), batch['rays_d'].reshape(-1, C), batch['near'].reshape(-1,1), batch['far'].reshape(-1,1),  batch)
+        ret = self.render(batch['rays_o'].reshape(-1, C), batch['rays_d'].reshape(-1, C), batch['near'].reshape(-1,1), batch['far'].reshape(-1,1),  batch)
         return {k:ret[k].reshape(B, N_rays, -1) for k in ret}

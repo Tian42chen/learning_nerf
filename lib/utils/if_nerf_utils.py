@@ -8,8 +8,7 @@ def get_rays_nerf(H, W, K, c2w):
                        indexing='xy')
     dirs = np.stack([(i-K[0][2])/K[0][0], -(j-K[1][2])/K[1][1], -np.ones_like(i)], -1)
     # Rotate ray directions from camera frame to the world frame
-    rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
-    # rays_d = rays_d / np.linalg.norm(rays_d, axis=2, keepdims=True)
+    rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)   # dot product, equals to: [c2w.dot(dir) for dir in dirs]
     # Translate camera frame's origin to the world frame. It is the origin of all rays.
     rays_o = np.broadcast_to(c2w[:3,-1], rays_d.shape) # NOTE T 直接是 相机的世界坐标
     return rays_o, rays_d
@@ -41,7 +40,7 @@ def render_weights(alpha: torch.Tensor, epsilon=1e-10):
     weights = alpha * torch.cumprod(torch.cat([alpha.new_ones(alpha.shape[0], 1), 1.-alpha + epsilon], dim=-1), dim=-1)[..., :-1]  # (N_rays, N_samples)
     return weights
 
-def volume_rendering(rgb, alpha, epsilon=1e-8, bg_brightness=None, bg_image=None):
+def volume_rendering(rgb, alpha, epsilon=1e-10, bg_brightness=None, bg_image=None):
     # NOTE: here alpha's last dim is not 1, but N_samples
     # rgb: N_rays, N_samples, 3
     # alpha: N_rays, N_samples
@@ -66,7 +65,7 @@ def volume_rendering(rgb, alpha, epsilon=1e-8, bg_brightness=None, bg_image=None
 
     return weights, rgb_map, acc_map
 
-def get_5D_coords(rays_o, rays_d, z_vals, perturb):
+def get_5D_coords(rays_o, rays_d, z_vals, perturb=0):
     if perturb > 0.:# and self.net.training:
         # get intervals between samples
         mids = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
@@ -82,11 +81,11 @@ def get_5D_coords(rays_o, rays_d, z_vals, perturb):
 
     # calculate dists for the opacity computation
     dists = z_vals[..., 1:] - z_vals[..., :-1]
-    dists = torch.cat([dists, dists[..., -1:]], dim=-1)*torch.norm(rays_d[...,None,:], dim=-1) # (N_rays, N_samples)
+    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape).to(dists.device)], dim=-1)*torch.norm(rays_d[...,None,:], dim=-1) # (N_rays, N_samples)
     return pts, viewdirs, dists
 
 # Hierarchical sampling (section 5.2)
-def sample_pdf(bins, weights, N_importance, perturb=False, epsilon=1e-8):
+def sample_pdf(bins, weights, N_importance, perturb=0, epsilon=1e-8):
     # Get pdf
     weights = weights + epsilon # prevent nans
     pdf = weights / torch.sum(weights, -1, keepdim=True)
