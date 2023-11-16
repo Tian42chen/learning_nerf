@@ -1,12 +1,12 @@
 task: nerf
 gpus: [2]
-exp_name: 'nerf-single'
+exp_name: 'nerf-test'
 scene: 'lego'
 
 # module path
-train_dataset_module: lib.datasets.nerf.synthetic_new
-test_dataset_module: lib.datasets.nerf.synthetic_new
-network_module: lib.networks.nerf.network_new
+train_dataset_module: lib.datasets.nerf.synthetic
+test_dataset_module: lib.datasets.nerf.synthetic
+network_module: lib.networks.nerf.network
 loss_module: lib.train.losses.nerf
 evaluator_module: lib.evaluators.nerf
 visualizer_module: lib.visualizers.nerf
@@ -15,7 +15,9 @@ task_arg:
     N_rays: 1024 # number of rays per training iteration
     chunk_size: 4096 # chunkify
     white_bkgd: True # use white background
-    cascade_samples: [64]
+    # cascade_samples: [64]
+    cascade_samples: [64, 128] # importance sampling, you can set it to [64] for the initial implemetation
+    perturb: 1
 
 network:
     nerf:
@@ -34,12 +36,10 @@ network:
 train_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'train'
-    input_ratio: 0.5 # input image ratio, you can set it to 0.5 to acclerate training
-    # cams: [0, 3, 1] 
+    input_ratio: 1. # input image ratio, you can set it to 0.5 to acclerate training
     cams: [0, -1, 1] # input cameras, you can use this variable to select training images
     near: 2.
     far: 6.
-    perturb: 1
     precrop:
         iters: 500
         frac: 0.5
@@ -69,5 +69,5 @@ test:
 ep_iter: 500
 save_ep: 40
 eval_ep: 20       # 20*400 = 8000 iterations
-save_latest_ep: 1 # 5*400 = 2000 iterations
+save_latest_ep: 5 # 5*400 = 2000 iterations
 log_interval: 100

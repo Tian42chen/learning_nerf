@@ -86,7 +86,7 @@ class Trainer(object):
 
 
             self.global_step += 1
-            if iteration % cfg.log_interval == 0 or iteration == (max_iter - 1):
+            if iteration % cfg.log_interval == 0 or iteration == (max_iter - 1) or iteration == 1: #NOTE no need -1
                 # print training state
                 eta_seconds = recorder.batch_time.global_avg * (max_iter - iteration)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))

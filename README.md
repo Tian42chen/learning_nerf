@@ -108,3 +108,5 @@ python train_net.py --cfg_file configs/img_fit/lego_view0.yaml
 ```
 python run.py --type evaluate --cfg_file configs/img_fit/lego_view0.yaml
 ```
+
+from [nerf](https://github.com/cxzhou35/learning_nerf)

@@ -22,7 +22,7 @@ class NetworkWrapper(nn.Module):
         psnr=self.mse2psnr(color_loss)
         scalar_stats.update({'psnr':psnr})
 
-        # scalar_stats.update({'acc': output['acc'].mean()})
+        scalar_stats.update({'acc': output['acc'].mean()})
 
         if 'rgb_coarse' in output:
             color_loss_coarse=self.color_crit(output['rgb_coarse'],batch['rgb'])
@@ -31,7 +31,7 @@ class NetworkWrapper(nn.Module):
             psnr_coarse=self.mse2psnr(color_loss_coarse)
             scalar_stats.update({'psnr_coarse':psnr_coarse})
 
-            # scalar_stats.update({'acc_coarse': output['acc_coarse'].mean()})
+            scalar_stats.update({'acc_coarse': output['acc_coarse'].mean()})
 
         if cfg.debug:
             print("batch rgb: ", batch['rgb'].shape, batch['rgb'].mean().item())

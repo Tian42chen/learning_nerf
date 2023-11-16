@@ -41,20 +41,23 @@ class Dataset(data.Dataset):
         self.camera_poses = []
         for frame in json_info['frames'][start:end:step]:
             camera_pose = frame['transform_matrix']
-            self.camera_poses.append(np.array(camera_pose).astype(np.float32))
+            self.camera_poses.append(np.array(camera_pose))
 
             image_path = os.path.join(self.data_root, frame
             ['file_path'][2:] + '.png')
-            image = imageio.imread(image_path)/255.
-            if cfg.task_arg.white_bkgd:
-                image = image[..., :3] * image[..., -1:] + (1 - image[..., -1:])
-            else:
-                image = image[..., :3]
-
+            image = imageio.imread(image_path)
             if input_ratio != 1.:
                 image = cv2.resize(image, None, fx=input_ratio, fy=input_ratio, interpolation=cv2.INTER_AREA)
-            self.images.append(np.array(image).astype(np.float32))
-            
+            self.images.append(np.array(image))
+
+        self.images = (np.array(self.images)/255.).astype(np.float32)
+        self.camera_poses = np.array(self.camera_poses).astype(np.float32)
+
+        if cfg.task_arg.white_bkgd:
+            self.images = self.images[..., :3] * self.images[..., -1:] + (1 - self.images[..., -1:])
+        else:
+            self.images = self.images[..., :3]
+
         self.H, self.W = self.images[0].shape[:2]
 
         camera_angle_x = float(json_info['camera_angle_x'])
@@ -85,26 +88,30 @@ class Dataset(data.Dataset):
 
         ret={}
         if self.split == 'train':
-            HW = self.H * self.W
             if self.precrop_iters > 0:
                 self.precrop_iters -= 1
                 start_H, end_H, start_W, end_W = crop_center(self.H, self.W, self.precrop_frac)
-                HW = (end_H - start_H) * (end_W - start_W)
-                image = image[start_H:end_H, start_W:end_W]
-                rays_o = rays_o[start_H:end_H, start_W:end_W]
-                rays_d = rays_d[start_H:end_H, start_W:end_W]
+                coords = np.stack(
+                    np.meshgrid(
+                        np.arange(start_H, end_H),
+                        np.arange(start_W, end_W)
+                    ), -1)
+            else: 
+                coords = np.stack(np.meshgrid(np.arange(self.H), np.arange(self.W)), -1)
+                
+            coords = coords.reshape(-1, 2)
+            ids = np.random.choice(coords.shape[0], self.batch_size, replace=False)
+            ids = coords[ids]
 
-                if cfg.debug:
-                    save_img(image, f'crop_img{index}', time=True)
-                    # print("HW: ", HW)
-                    # print("rays_o: ", rays_o.shape)
-
-            ids = np.random.choice(HW, size=self.batch_size, replace=False)
+            if cfg.debug:
+                save_img(image, f'crop_img{index}', time=True)
+                # print("HW: ", HW)
+                # print("rays_o: ", rays_o.shape)
 
             ret.update({
-                'rays_o': rays_o.reshape(-1,3)[ids],
-                'rays_d': rays_d.reshape(-1,3)[ids],
-                'rgb': image.reshape(-1,3)[ids]
+                'rays_o': rays_o[ids[:,0], ids[:,1]], 
+                'rays_d': rays_d[ids[:,0], ids[:,1]],
+                'rgb': image[ids[:,0], ids[:,1]]
             })
         elif self.split == 'test':
             ret.update({
