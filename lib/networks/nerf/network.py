@@ -10,10 +10,9 @@ from lib.config import cfg
 class NeRF(nn.Module):
     def __init__(self, net_cfg) -> None:
         super(NeRF, self).__init__()
-        self.xyz_encoder, input_xyz_ch = get_encoder(net_cfg.xyz_encoder)
-        self.dir_encoder, input_dir_ch = get_encoder(net_cfg.dir_encoder)
 
         W, D, V_D  = net_cfg.nerf.W, net_cfg.nerf.D, net_cfg.nerf.V_D
+        input_xyz_ch, input_dir_ch = net_cfg.input_xyz_ch, net_cfg.input_dir_ch
 
         self.xyz_linears = nn.ModuleList(
             [nn.Linear(input_xyz_ch, W)] + [nn.Linear(W, W) for i in range(D-1)])
@@ -37,7 +36,7 @@ class NeRF(nn.Module):
             print("alpha_linear.bias: ", self.alpha_linear.bias.min())
 
     def forward(self, pts, viewdir):
-        x = self.xyz_encoder(pts)
+        x = pts
         for l in self.xyz_linears:
             x = l(x)
             x = F.relu(x)
@@ -45,8 +44,7 @@ class NeRF(nn.Module):
         rawalpha = self.alpha_linear(x)
         feature = self.feature_linear(x)
 
-        dir_encoding = self.dir_encoder(viewdir)
-        x = torch.cat([feature, dir_encoding], dim=-1)
+        x = torch.cat([feature, viewdir], dim=-1)
         for l in self.dir_linears:
             x = l(x)
             x = F.relu(x)
@@ -77,6 +75,12 @@ class Network(nn.Module):
         self.white_bkgd = cfg.task_arg.white_bkgd
         self.N_samples = cfg.task_arg.cascade_samples[0]
         self.N_importance = None
+
+        self.xyz_encoder, input_xyz_ch = get_encoder(net_cfg.xyz_encoder)
+        self.dir_encoder, input_dir_ch = get_encoder(net_cfg.dir_encoder)
+
+        net_cfg.input_xyz_ch = input_xyz_ch
+        net_cfg.input_dir_ch = input_dir_ch
 
         self.coarse_net = NeRF(net_cfg)
         if len(cfg.task_arg.cascade_samples)>1:
@@ -109,7 +113,10 @@ class Network(nn.Module):
         pts = pts.reshape(-1, C)
         viewdir = viewdir.reshape(-1, C)
 
-        ret = self.batchify(pts, viewdir, self.coarse_net)
+        xyz_encoding = self.xyz_encoder(pts)
+        dir_encoding = self.dir_encoder(viewdir)
+
+        ret = self.batchify(xyz_encoding, dir_encoding, self.coarse_net)
 
         rawalpha = ret['rawalpha'].reshape(N, S)
         rgb = ret['rgb'].reshape(N, S, -1)
@@ -140,7 +147,10 @@ class Network(nn.Module):
             fine_pts = fine_pts.reshape(-1, fine_C)
             fine_viewdir = fine_viewdir.reshape(-1, fine_C)
 
-            fine_ret = self.batchify(fine_pts, fine_viewdir, self.fine_net)
+            fine_xyz_encoding = self.xyz_encoder(fine_pts)
+            fine_dir_encoding = self.dir_encoder(fine_viewdir)
+
+            fine_ret = self.batchify(fine_xyz_encoding, fine_dir_encoding, self.fine_net)
 
             fine_rawalpha = fine_ret['rawalpha'].reshape(fine_N, fine_S)
             fine_rgb = fine_ret['rgb'].reshape(fine_N, fine_S, -1)

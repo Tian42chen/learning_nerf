@@ -31,7 +31,7 @@ def make_dataset(cfg, is_train=True):
     else:
         args = cfg.test_dataset
         module = cfg.test_dataset_module
-    dataset = importlib.import_module(module).Dataset(**args)
+    dataset = importlib.import_module(module).Dataset(args)
     return dataset
 
 
