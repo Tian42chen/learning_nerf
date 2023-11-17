@@ -123,16 +123,23 @@ else:
 
 #### 坐标变换
 > 网络不收敛, 可视化后发现是坐标范围不对
+
 $$
-x_c = R (x_w - c_x) = R x_w + T\\
+x_c = R (x_w - c_x) = R x_w + T
+$$
+
+$$
 T = -Rc_x
 $$
+
 $x_c$ 为 $x$ 相机坐标, $x_w$ 为世界坐标, $c_x$ 为相机在世界的坐标. 内参矩阵 (inner matrix) 一般都是 w2c, 世界到相机的. 
 
 但是 nerf 的矩阵是转移矩阵 (transform matrix),  是 c2w, 相机到世界的, 也就是
+
 $$
 x_w = R^T x_c + c_x = R'x_c + T'
 $$
+
 所以求 rays 的时候坐标范围不对. 
 
 #### `F.relu(rawalpha)`
