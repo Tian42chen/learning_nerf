@@ -50,7 +50,7 @@ def pose_spherical(theta, phi, radius):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, **kwargs):
+    def __init__(self, data_cfg):
         """
         Description:
             __init__ 函数负责从磁盘中 load 指定格式的文件，计算并存储为特定形式
@@ -61,9 +61,9 @@ class Dataset(data.Dataset):
             None
         """
         super(Dataset, self).__init__()
-        data_root, split, scene = kwargs['data_root'], kwargs['split'], cfg.scene
+        data_root, split, scene = data_cfg.data_root, data_cfg.split, cfg.scene
         self.data_root = os.path.join(data_root, scene)
-        self.input_ratio = kwargs['input_ratio']
+        self.input_ratio = data_cfg.input_ratio
         self.split = split # train or test
         self.white_bkgd = cfg.task_arg.white_bkgd
         self.num_iter_train = 0
@@ -185,10 +185,8 @@ class Dataset(data.Dataset):
             ray_d = self.rays_d[index].reshape(-1, 3)  # (H * W, 3)
             rgb = self.imgs[index].reshape(-1, 3)      # (H * W, 3)
 
-        ret = {'rays_o': ray_o, 'rays_d': ray_d, 'rgb': rgb.float(), 
-               'near': np.broadcast_to(2.0, ray_o.shape[:-1] + (1,)).astype(np.float32),
-               'far': np.broadcast_to(6.0, ray_o.shape[:-1] + (1,)).astype(np.float32)
-            }
+        ret = {'rays_o': ray_o, 'rays_d': ray_d, 'rgb': rgb
+               , 'near': np.array(2.0).astype(np.float32), 'far': np.array(6.0).astype(np.float32)}
         ret.update({'meta':
             {
                 'H': self.H,

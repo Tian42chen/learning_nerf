@@ -1,0 +1,75 @@
+task: nerf
+gpus: [2]
+exp_name: 'nerf-new1'
+scene: 'lego'
+
+# module path 011 precrop
+train_dataset_module: lib.datasets.nerf.synthetic
+test_dataset_module: lib.datasets.nerf.synthetic
+network_module: lib.networks.nerf.network_new
+renderer_module: lib.networks.renderers.renderer_new
+loss_module: lib.train.losses.nerf
+evaluator_module: lib.evaluators.nerf
+visualizer_module: lib.visualizers.nerf
+
+task_arg:
+    N_rays: 1024 # number of rays per training iteration
+    chunk_size: 4096 # chunkify
+    white_bkgd: True # use white background
+    cascade_samples: [64]
+    # cascade_samples: [64, 128] # importance sampling, you can set it to [64] for the initial implemetation
+    perturb: 1
+
+network:
+    nerf:
+        W: 256 # width
+        D: 8 # depth
+        V_D: 1 # appearance depth
+    xyz_encoder:
+        type: 'frequency' # positional encoding
+        input_dim: 3
+        freq: 10
+    dir_encoder:
+        type: 'frequency'
+        input_dim: 3
+        freq: 4
+
+train_dataset:
+    data_root: 'data/nerf_synthetic'
+    split: 'train'
+    input_ratio: 1. # input image ratio, you can set it to 0.5 to acclerate training
+    cams: [0, -1, 1] # input cameras, you can use this variable to select training images
+    near: 2.
+    far: 6.
+    precrop:
+        iter: 500
+        frac: 0.5
+        
+
+test_dataset:
+    data_root: 'data/nerf_synthetic'
+    split: 'test'
+    input_ratio: 0.5
+    cams: [0, -1, 5]
+    near: 2.
+    far: 6.
+
+train:
+    batch_size: 1
+    lr: 5e-4
+    weight_decay: 0.
+    epoch: 2
+    scheduler:
+        type: 'exponential'
+        gamma: 0.1
+        decay_epochs: 1000
+    num_workers: 4
+
+test:
+    batch_size: 1
+
+ep_iter: 500
+save_ep: 40
+eval_ep: 2       # 20*400 = 8000 iterations
+save_latest_ep: 1 # 5*400 = 2000 iterations
+log_interval: 100
