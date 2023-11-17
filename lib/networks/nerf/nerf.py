@@ -26,25 +26,14 @@ class NeRF(nn.Module):
         nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
         nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
         # nn.init.constant_(self.alpha_linear.bias, 0)
-        if cfg.debug:
-            print("alpha_linear.weight: ", self.alpha_linear.weight.mean())
-            print("alpha_linear.weight: ", self.alpha_linear.weight.max())
-            print("alpha_linear.weight: ", self.alpha_linear.weight.min())
-            print("alpha_linear.bias: ", self.alpha_linear.bias.mean())
-            print("alpha_linear.bias: ", self.alpha_linear.bias.max())
-            print("alpha_linear.bias: ", self.alpha_linear.bias.min())
 
     def forward(self, pts, viewdir):
         x = pts
         for l in self.xyz_linears:
             x = l(x)
             x = F.relu(x)
-        # debug_x = x.clone()
         rawalpha = self.alpha_linear(x)
         feature = self.feature_linear(x)
-
-        # print("feature: ", feature.shape)
-        # print("viewdir: ", viewdir.shape)
 
         x = torch.cat([feature, viewdir], dim=-1)
         for l in self.dir_linears:
@@ -52,19 +41,6 @@ class NeRF(nn.Module):
             x = F.relu(x)
         rgb = self.rgb_linear(x)
         rgb = torch.sigmoid(rgb)
-
-        # print("pts: ",pts.mean())
-        # print("dist: ",dist.mean())
-        # if cfg.debug and rawalpha.max() <0.:
-        #     # print("debug_x: ", debug_x[0])
-        #     # print("weights: ", self.alpha_linear.weight)
-        #     # print("debug_x: ", debug_x[0].max())
-        #     # print("debug_x: ", debug_x[0].mean())
-        #     # print("debug_x: ", debug_x[0].min())
-        #     print("rawalpha: ",rawalpha[0].mean())
-        #     print("rawalpha: ",rawalpha[0].max())
-        #     # print("alpha: ",alpha[0].mean())
-        #     raise Exception("rawalpha < 0")
 
         return {'rgb': rgb, 'rawalpha': rawalpha}
 

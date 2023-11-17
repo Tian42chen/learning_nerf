@@ -23,7 +23,6 @@ class Dataset(data.Dataset):
         if 'precrop' in data_cfg:
             self. precrop_counter = Precrop_Counter(data_cfg.precrop, cfg.record_dir)
 
-
         self.near = np.array(data_cfg.near).astype(np.float32)
         self.far = np.array(data_cfg.far).astype(np.float32)
 
@@ -73,16 +72,6 @@ class Dataset(data.Dataset):
         rays_o, rays_d = get_rays_nerf(self.H, self.W, self.K, camera_pose)
         rays_o, rays_d = rays_o.astype(np.float32), rays_d.astype(np.float32)
 
-        if cfg.debug:
-            save_img(image, f'img{index}', time=True)
-            # print("rays_o: ", rays_o.shape)
-            # print(f"R.T{index}: ", R.T)
-            # print(f"T{index}: ", T)
-            # print(f"R.T*T{index}: ", np.dot(R.T, T))
-            # print(f"camera_pose{index}: ", -np.dot(R.T, T).ravel())
-            # print(f"data{index}: ", rays_o[0][0])
-            # print("\n")
-
         ret={}
         if self.split == 'train':
             HW = self.H * self.W
@@ -92,11 +81,6 @@ class Dataset(data.Dataset):
                 image = image[start_H:end_H, start_W:end_W]
                 rays_o = rays_o[start_H:end_H, start_W:end_W]
                 rays_d = rays_d[start_H:end_H, start_W:end_W]
-
-                if cfg.debug:
-                    save_img(image, f'crop_img{index}', time=True)
-                    # print("HW: ", HW)
-                    # print("rays_o: ", rays_o.shape)
 
             ids = np.random.choice(HW, size=self.batch_size, replace=False)
 

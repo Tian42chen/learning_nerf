@@ -125,7 +125,7 @@ def crop_center(H, W, fraction=0.5):
     return start_H, end_H, start_W, end_W
 
 
-# NOTE  当在多进程环境中使用DataLoader时, 每个工作进程都会创建自己的Python解释器和内存空间, 这意味着每个工作进程都有自己的全局变量, 且每次 epoch 会使用初始化完成的 dataset 的状态. 所以只能出此下策了. 就是统计会有点延迟, 不过问题不大. 
+# NOTE  当在多进程环境中使用DataLoader时, 每个工作进程都会创建自己的Python解释器和内存空间, 这意味着每个工作进程都有自己的全局变量, 且每次 epoch 会使用刚初始化完成的 dataset 的状态. 所以只能出此下策了. 就是统计会有点延迟, 不过问题不大. 
 class Precrop_Counter:
     def __init__(self, precrop_cfg, dir) -> None:
         self.tmp_log = os.path.join(dir, "precrop_counter.log")

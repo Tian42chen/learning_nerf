@@ -50,7 +50,7 @@ test_dataset:
     data_root: 'data/nerf_synthetic'
     split: 'test'
     input_ratio: 0.5
-    cams: [0, -1, 5]
+    cams: [0, -1, 100]
     near: 2.
     far: 6.
 

@@ -30,13 +30,6 @@ class Renderer():
 
         pts, viewdir, dists = get_5D_coords(rays_o, rays_d, z_vals, perturb)
 
-        if cfg.debug:
-            # save pts as npy
-            # print(f"network: ",ray_o[0])
-            save_debug(rays_o[0], f'ray_o')
-            save_debug(pts, f'pts')
-            save_debug(viewdir, f'viewdir')
-
         N, S, C = pts.shape
 
         pts = pts.reshape(-1, C)
@@ -48,13 +41,6 @@ class Renderer():
         rgb = ret['rgb'].reshape(N, S, -1)
 
         alpha = 1. - torch.exp(-F.relu(rawalpha)*dists)
-
-        if cfg.debug and alpha.max() <= 0.:
-            print("rawalpha: ", rawalpha.mean())
-            print("rawalpha: ", rawalpha.max())
-            print("alpha: ", alpha.mean())
-            print("alpha: ", alpha.max())
-            raise Exception("alpha < 0")
 
         weights, rgb_map, acc_map = volume_rendering(rgb, alpha, bg_brightness=self.white_bkgd)
 
@@ -89,19 +75,9 @@ class Renderer():
             ret = fine_ret
             for k in coarse_ret:
                 ret[k+'_coarse'] = coarse_ret[k]
-                
-        if cfg.debug:
-            # print("z_vals: ", z_vals.shape, z_vals[0])
-            # print("z_vals_mid: ", z_vals_mid.shape, z_vals_mid[0])
-            # print("fine_z_vals: ", fine_z_vals.shape, fine_z_vals[0])
-            save_debug(rgb, f'rgb')
-            save_debug(alpha, f'alpha')
-            for k in ret:
-                if (torch.isnan(ret[k]).any() or torch.isinf(ret[k]).any()):
-                    print(f"! [Numerical Error] {k} contains nan or inf.")
 
         return ret
-    
+
 
     def batchify(self, rays_o, rays_d, batch):
         all_ret = {}
