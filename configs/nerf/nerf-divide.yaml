@@ -1,5 +1,5 @@
 task: nerf
-gpus: [1]
+gpus: [2]
 exp_name: 'nerf-divide'
 scene: 'lego'
 
@@ -42,8 +42,9 @@ train_dataset:
     far: 6.
     perturb: 1
     precrop:
-        iters: 500
+        iter: 200
         frac: 0.5
+        log_step: 10 # will stop cropping at $i*num_workers*log_step \ge iter,\ i \in N$
 
 test_dataset:
     data_root: 'data/nerf_synthetic'

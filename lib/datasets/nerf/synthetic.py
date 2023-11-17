@@ -100,13 +100,6 @@ class Dataset(data.Dataset):
 
             ids = np.random.choice(HW, size=self.batch_size, replace=False)
 
-                if cfg.debug:
-                    save_img(image, f'crop_img{index}', time=True)
-                    # print("HW: ", HW)
-                    # print("rays_o: ", rays_o.shape)
-
-            ids = np.random.choice(HW, size=self.batch_size, replace=False)
-
             ret.update({
                 'rays_o': rays_o.reshape(-1,3)[ids],
                 'rays_d': rays_d.reshape(-1,3)[ids],
