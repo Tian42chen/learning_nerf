@@ -19,8 +19,8 @@ class Dataset(data.Dataset):
         input_ratio = kwargs['input_ratio']
         start, end, step = kwargs['cams']
 
-        self.near = kwargs['near']
-        self.far = kwargs['far']
+        self.near = np.array(kwargs['near']).astype(np.float32)
+        self.far = np.array(kwargs['far']).astype(np.float32)
 
         self.precrop_iters = 0
         if self.split == 'train' and 'precrop' in kwargs:
@@ -114,8 +114,8 @@ class Dataset(data.Dataset):
             })
 
         ret.update({
-            'near': np.broadcast_to(self.near, ret['rays_o'].shape[:-1] + (1,)).astype(np.float32),
-            'far': np.broadcast_to(self.far, ret['rays_o'].shape[:-1] + (1,)).astype(np.float32)
+            'near': self.near,
+            'far': self.far
         })
 
         meta = {'H': self.H, 'W': self.W}

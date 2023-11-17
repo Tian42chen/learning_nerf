@@ -15,6 +15,7 @@ def run_dataset():
 def run_network():
     from lib.networks import make_network
     from lib.datasets import make_data_loader
+    from lib.networks.renderers import make_renderer
     from lib.utils.net_utils import load_network
     from lib.utils.data_utils import to_cuda
     import tqdm
@@ -27,13 +28,14 @@ def run_network():
 
     i=0
     data_loader = make_data_loader(cfg, is_train=True)
+    renderer = make_renderer(cfg, network)
     total_time = 0
     for batch in tqdm.tqdm(data_loader):
         batch = to_cuda(batch)
         with torch.no_grad():
             torch.cuda.synchronize()
             start = time.time()
-            network(batch)
+            renderer.render(batch)
             torch.cuda.synchronize()
             total_time += time.time() - start
         if cfg.debug and i >= 0 : break
@@ -43,6 +45,7 @@ def run_network():
 
 def run_evaluate():
     from lib.datasets import make_data_loader
+    from lib.networks.renderers import make_renderer
     from lib.evaluators import make_evaluator
     import tqdm
     import torch
@@ -57,6 +60,7 @@ def run_evaluate():
     network.eval()
 
     data_loader = make_data_loader(cfg, is_train=False)
+    renderer = make_renderer(cfg, network)
     evaluator = make_evaluator(cfg)
     net_time = []
     for batch in tqdm.tqdm(data_loader):
@@ -66,7 +70,7 @@ def run_evaluate():
         with torch.no_grad():
             torch.cuda.synchronize()
             start_time = time.time()
-            output = network(batch)
+            output = renderer.render(batch)
             torch.cuda.synchronize()
             end_time = time.time()
         net_time.append(end_time - start_time)

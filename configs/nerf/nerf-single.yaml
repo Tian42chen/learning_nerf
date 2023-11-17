@@ -7,6 +7,7 @@ scene: 'lego'
 train_dataset_module: lib.datasets.nerf.synthetic 
 test_dataset_module: lib.datasets.nerf.synthetic
 network_module: lib.networks.nerf.network
+renderer_module: lib.networks.renderers.default
 loss_module: lib.train.losses.nerf
 evaluator_module: lib.evaluators.nerf
 visualizer_module: lib.visualizers.nerf
