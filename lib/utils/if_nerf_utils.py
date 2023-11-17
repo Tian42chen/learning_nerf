@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 
@@ -122,3 +123,33 @@ def crop_center(H, W, fraction=0.5):
     start_W = int(W*(1-fraction))//2
     end_W = start_W + int(W*fraction)
     return start_H, end_H, start_W, end_W
+
+
+# NOTE  当在多进程环境中使用DataLoader时, 每个工作进程都会创建自己的Python解释器和内存空间, 这意味着每个工作进程都有自己的全局变量, 且每次 epoch 会使用初始化完成的 dataset 的状态. 所以只能出此下策了. 就是统计会有点延迟, 不过问题不大. 
+class Precrop_Counter:
+    def __init__(self, precrop_cfg, dir) -> None:
+        self.tmp_log = os.path.join(dir, "precrop_counter.log")
+
+        if not os.path.exists(self.tmp_log):
+            with open(self.tmp_log, "a") as f:
+                f.write("")
+            print("Created precrop_counter.log at", self.tmp_log)
+        self.max_iter = precrop_cfg.iter
+        self.frac = precrop_cfg.frac
+        self.log_step = precrop_cfg.log_step
+
+        self.latest_count = 0
+        self.counter = 0
+
+    def __call__(self):
+        if self.latest_count >= self.max_iter:
+            return False
+        else:
+            self.counter += 1
+            if self.counter % self.log_step == 0:
+                with open(self.tmp_log, "a") as f:
+                    f.write(f"{self.counter}\n")
+            with open(self.tmp_log, "r") as f:
+                self.latest_count = len(f.readlines())*self.log_step
+            # if self.latest_count >= self.max_iter: print("Done with precrop")
+            return self.latest_count < self.max_iter

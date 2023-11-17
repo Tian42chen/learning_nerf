@@ -2,7 +2,7 @@ import torch
 import torch.utils.data as data
 import numpy as np
 import os
-from lib.utils.if_nerf_utils import extract_parameters, get_rays, get_rays_nerf, crop_center
+from lib.utils.if_nerf_utils import extract_parameters, get_rays, get_rays_nerf, crop_center, Precrop_Counter
 from lib.utils.debug_utils import save_img
 from lib.config import cfg
 from torchvision import transforms as T
@@ -12,20 +12,20 @@ import cv2
 import tqdm
 
 class Dataset(data.Dataset):
-    def __init__(self, **kwargs):
+    def __init__(self, data_cfg):
         super(Dataset, self).__init__()
-        data_root = kwargs['data_root']
-        self.split = kwargs['split']
-        input_ratio = kwargs['input_ratio']
-        start, end, step = kwargs['cams']
+        data_root = data_cfg.data_root
+        self.split = data_cfg.split
+        input_ratio = data_cfg.input_ratio
+        start, end, step = data_cfg.cams
 
-        self.near = np.array(kwargs['near']).astype(np.float32)
-        self.far = np.array(kwargs['far']).astype(np.float32)
+        self.precrop_counter = None
+        if 'precrop' in data_cfg:
+            self. precrop_counter = Precrop_Counter(data_cfg.precrop, cfg.record_dir)
 
-        self.precrop_iters = 0
-        if self.split == 'train' and 'precrop' in kwargs:
-            self.precrop_iters = kwargs['precrop'].iters
-            self.precrop_frac = kwargs['precrop'].frac
+
+        self.near = np.array(data_cfg.near).astype(np.float32)
+        self.far = np.array(data_cfg.far).astype(np.float32)
 
         scene = cfg.scene
         self.data_root = os.path.join(data_root, scene)
@@ -64,8 +64,8 @@ class Dataset(data.Dataset):
         focal = .5 * self.W / np.tan(.5 * camera_angle_x)
         self.K = np.array([[focal, 0, self.W/2], [0, focal, self.H/2], [0, 0, 1]])
 
-        if 'perturb' in kwargs:
-            self.perturb = kwargs['perturb']
+        if 'perturb' in data_cfg:
+            self.perturb = data_cfg.perturb
         else:
             self.perturb = 0
     
@@ -88,20 +88,20 @@ class Dataset(data.Dataset):
 
         ret={}
         if self.split == 'train':
-            if self.precrop_iters > 0:
-                self.precrop_iters -= 1
-                start_H, end_H, start_W, end_W = crop_center(self.H, self.W, self.precrop_frac)
-                coords = np.stack(
-                    np.meshgrid(
-                        np.arange(start_H, end_H),
-                        np.arange(start_W, end_W)
-                    ), -1)
-            else: 
-                coords = np.stack(np.meshgrid(np.arange(self.H), np.arange(self.W)), -1)
-                
-            coords = coords.reshape(-1, 2)
-            ids = np.random.choice(coords.shape[0], self.batch_size, replace=False)
-            ids = coords[ids]
+            HW = self.H * self.W
+            if self.precrop_counter is not None and self.precrop_counter():
+                start_H, end_H, start_W, end_W = crop_center(self.H, self.W, self.precrop_counter.frac)
+                HW = (end_H - start_H) * (end_W - start_W)
+                image = image[start_H:end_H, start_W:end_W]
+                rays_o = rays_o[start_H:end_H, start_W:end_W]
+                rays_d = rays_d[start_H:end_H, start_W:end_W]
+
+                if cfg.debug:
+                    save_img(image, f'crop_img{index}', time=True)
+                    # print("HW: ", HW)
+                    # print("rays_o: ", rays_o.shape)
+
+            ids = np.random.choice(HW, size=self.batch_size, replace=False)
 
             if cfg.debug:
                 save_img(image, f'crop_img{index}', time=True)
@@ -109,9 +109,9 @@ class Dataset(data.Dataset):
                 # print("rays_o: ", rays_o.shape)
 
             ret.update({
-                'rays_o': rays_o[ids[:,0], ids[:,1]], 
-                'rays_d': rays_d[ids[:,0], ids[:,1]],
-                'rgb': image[ids[:,0], ids[:,1]]
+                'rays_o': rays_o.reshape(-1,3)[ids],
+                'rays_d': rays_d.reshape(-1,3)[ids],
+                'rgb': image.reshape(-1,3)[ids]
             })
         elif self.split == 'test':
             ret.update({

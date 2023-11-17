@@ -10,10 +10,8 @@ from lib.config import cfg
 class NeRF(nn.Module):
     def __init__(self, net_cfg) -> None:
         super(NeRF, self).__init__()
-        self.xyz_encoder, input_xyz_ch = get_encoder(net_cfg.xyz_encoder)
-        self.dir_encoder, input_dir_ch = get_encoder(net_cfg.dir_encoder)
-
         W, D, V_D  = net_cfg.nerf.W, net_cfg.nerf.D, net_cfg.nerf.V_D
+        input_xyz_ch, input_dir_ch = net_cfg.input_xyz_ch, net_cfg.input_dir_ch
 
         self.xyz_linears = nn.ModuleList(
             [nn.Linear(input_xyz_ch, W)] + [nn.Linear(W, W) for i in range(D-1)])
@@ -25,8 +23,8 @@ class NeRF(nn.Module):
         self.rgb_linear = nn.Linear(W//2, 3)
         # F.leaky_relu(self.rgb_linear.weight, 0.1, inplace=True)
         # NOTE 若 rawalpha 初始得到负数, 则经过 relu 后梯度永远不可能传递.
-        # nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
-        # nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
+        nn.init.uniform_(self.alpha_linear.weight, -.5/np.sqrt(W), 1./np.sqrt(W))
+        nn.init.uniform_(self.alpha_linear.bias, -.5/np.sqrt(W), 1./np.sqrt(W))
         # nn.init.constant_(self.alpha_linear.bias, 0)
         if cfg.debug:
             print("alpha_linear.weight: ", self.alpha_linear.weight.mean())
@@ -37,7 +35,7 @@ class NeRF(nn.Module):
             print("alpha_linear.bias: ", self.alpha_linear.bias.min())
 
     def forward(self, pts, viewdir):
-        x = self.xyz_encoder(pts)
+        x = pts
         for l in self.xyz_linears:
             x = l(x)
             x = F.relu(x)
@@ -45,8 +43,10 @@ class NeRF(nn.Module):
         rawalpha = self.alpha_linear(x)
         feature = self.feature_linear(x)
 
-        dir_encoding = self.dir_encoder(viewdir)
-        x = torch.cat([feature, dir_encoding], dim=-1)
+        # print("feature: ", feature.shape)
+        # print("viewdir: ", viewdir.shape)
+
+        x = torch.cat([feature, viewdir], dim=-1)
         for l in self.dir_linears:
             x = l(x)
             x = F.relu(x)
@@ -75,6 +75,12 @@ class Network(nn.Module):
 
         self.chunk_size = cfg.task_arg.chunk_size*16
 
+        self.xyz_encoder, input_xyz_ch = get_encoder(net_cfg.xyz_encoder)
+        self.dir_encoder, input_dir_ch = get_encoder(net_cfg.dir_encoder)
+
+        net_cfg.input_xyz_ch = input_xyz_ch
+        net_cfg.input_dir_ch = input_dir_ch
+
         self.coarse_net = NeRF(net_cfg)
         if len(cfg.task_arg.cascade_samples)>1:
             self.fine_net = NeRF(net_cfg)
@@ -92,5 +98,9 @@ class Network(nn.Module):
     
     def forward(self, pts, viewdir, model=''):
         fn = self.fine_net if model == 'fine' else self.coarse_net
-        ret = self.batchify(pts, viewdir, fn)
+
+        xyz_encoding = self.xyz_encoder(pts)
+        dir_encoding = self.dir_encoder(viewdir)
+
+        ret = self.batchify(xyz_encoding, dir_encoding, fn)
         return ret
